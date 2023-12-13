@@ -14,7 +14,7 @@ void enqueue(struct queue_t * q, struct pcb_t * proc)
     /* TODO: put a new process to queue [q] */
     if (q->size == MAX_QUEUE_SIZE) {
         return;
-    }
+    }   
     q->size++;
     int pos=q->size-1;
     while(pos) {
