@@ -1,34 +1,51 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "queue.h"
 
-int empty(struct queue_t * q) {
+int empty(struct queue_t * q) 
+{
+        if (q == NULL) return 1;
 	return (q->size == 0);
 }
 
-void enqueue(struct queue_t * q, struct pcb_t * proc) {
-	/* TODO: put a new process to queue [q] */	
-	if (q->size == MAX_QUEUE_SIZE) {
-		printf("Error: queue is full\n");
+void enqueue(struct queue_t * q, struct pcb_t * proc) 
+{
+        /* TODO: put a new process to queue [q] */
+	if (q->size == MAX_QUEUE_SIZE) 
+	{
+		perror("There are no available slots in this queue");
 		return;
 	}
-	q->proc[q->size] = proc;
-	q->size++;
-}
-
-struct pcb_t * dequeue(struct queue_t * q) {
-	/* TODO: return a pcb whose priority is the highest
-	 * in the queue [q] and remember to remove it from q
-	 * */
-	if (empty(q)) {
-		return NULL;
-	} 
-	struct pcb_t* removeItem = q->proc[0];
-	for (int i = 0; i < q->size-1; i++){
-		q->proc[i] = q->proc[i + 1];
+	else
+	{
+		q->proc[q->size++] = proc;
 	}
-	q->proc[q->size-1] = NULL;
-	q->size--;
-	return removeItem;
+	
 }
 
+struct pcb_t * dequeue(struct queue_t * q) 
+{
+        /* TODO: return a pcb whose prioprity is the highest
+         * in the queue [q] and remember to remove it from q
+         * */
+	if (q->size == 0)
+	{
+		perror("There are no process in this queue");
+		return NULL;
+	}
+	struct pcb_t * proc_out = q->proc[0];
+	if (q->size == 1)
+	{
+		q->proc[0] = NULL;
+		q->size--;
+		return proc_out;
+	}
+	else
+	{
+		memmove(&(q->proc[0]), &(q->proc[1]), (q->size - 1) * sizeof(proc_out));
+		q->proc[q->size] = NULL;
+		q->size--;
+		return proc_out;
+	}
+}

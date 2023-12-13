@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "stdlib.h": "c",
+        "cpu.h": "c",
+        "timer.h": "c",
+        "sched.h": "c",
+        "loader.h": "c",
+        "mm.h": "c",
+        "bitops.h": "c"
+    }
+}

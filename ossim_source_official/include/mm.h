@@ -2,20 +2,25 @@
 
 #include "bitops.h"
 #include "common.h"
+#include <pthread.h>
 
 /* CPU Bus definition */
 #define PAGING_CPU_BUS_WIDTH 22 /* 22bit bus - MAX SPACE 4MB */
-#define PAGING_PAGESZ  256      /* 256B or 8-bits PAGE NUMBER */
+#define PAGING_PAGESZ 256       /* 256B or 8-bits PAGE NUMBER */
 #define PAGING_MEMRAMSZ BIT(10) /* 1MB */
-#define PAGING_PAGE_ALIGNSZ(sz) (DIV_ROUND_UP(sz,PAGING_PAGESZ)*PAGING_PAGESZ)
+#define PAGING_PAGE_ALIGNSZ(sz) (DIV_ROUND_UP(sz, PAGING_PAGESZ) * PAGING_PAGESZ)
 
 #define PAGING_MEMSWPSZ BIT(14) /* 16MB */
-#define PAGING_SWPFPN_OFFSET 5  
-#define PAGING_MAX_PGN  (DIV_ROUND_UP(PAGING_CPU_BUS_WIDTH,PAGING_PAGESZ))
-#define SWPTYP 0
+#define PAGING_SWPFPN_OFFSET 5
+
+/* ------------------Bat dau phan lam----------------------- */
+// #define PAGING_MAX_PGN  (DIV_ROUND_UP(PAGING_CPU_BUS_WIDTH,PAGING_PAGESZ))
+#define PAGING_CPU_BUS_WIDTH2MU BIT(PAGING_CPU_BUS_WIDTH)
+#define PAGING_MAX_PGN (DIV_ROUND_UP(PAGING_CPU_BUS_WIDTH2MU, PAGING_PAGESZ))
+/*--------------------Ket thuc phan lam----------------------*/
 #define PAGING_SBRK_INIT_SZ PAGING_PAGESZ
 /* PTE BIT */
-#define PAGING_PTE_PRESENT_MASK BIT(31) 
+#define PAGING_PTE_PRESENT_MASK BIT(31)
 #define PAGING_PTE_SWAPPED_MASK BIT(30)
 #define PAGING_PTE_RESERVE_MASK BIT(29)
 #define PAGING_PTE_DIRTY_MASK BIT(28)
@@ -23,8 +28,8 @@
 #define PAGING_PTE_EMPTY02_MASK BIT(13)
 
 /* PTE BIT PRESENT */
-#define PAGING_PTE_SET_PRESENT(pte) (pte=pte|PAGING_PTE_PRESENT_MASK)
-#define PAGING_PAGE_PRESENT(pte) (pte&PAGING_PTE_PRESENT_MASK)
+#define PAGING_PTE_SET_PRESENT(pte) (pte = pte | PAGING_PTE_PRESENT_MASK)
+#define PAGING_PAGE_PRESENT(pte) (pte & PAGING_PTE_PRESENT_MASK)
 
 /* USRNUM */
 #define PAGING_PTE_USRNUM_LOBIT 15
@@ -39,11 +44,10 @@
 #define PAGING_PTE_SWPOFF_LOBIT 5
 #define PAGING_PTE_SWPOFF_HIBIT 25
 
-
-#define PAGING_PTE_USRNUM_MASK GENMASK(PAGING_PTE_USRNUM_HIBIT,PAGING_PTE_USRNUM_LOBIT)
-#define PAGING_PTE_FPN_MASK    GENMASK(PAGING_PTE_FPN_HIBIT,PAGING_PTE_FPN_LOBIT)
-#define PAGING_PTE_SWPTYP_MASK GENMASK(PAGING_PTE_SWPTYP_HIBIT,PAGING_PTE_SWPTYP_LOBIT)
-#define PAGING_PTE_SWPOFF_MASK GENMASK(PAGING_PTE_SWPOFF_HIBIT,PAGING_PTE_SWPOFF_LOBIT)
+#define PAGING_PTE_USRNUM_MASK GENMASK(PAGING_PTE_USRNUM_HIBIT, PAGING_PTE_USRNUM_LOBIT)
+#define PAGING_PTE_FPN_MASK GENMASK(PAGING_PTE_FPN_HIBIT, PAGING_PTE_FPN_LOBIT)
+#define PAGING_PTE_SWPTYP_MASK GENMASK(PAGING_PTE_SWPTYP_HIBIT, PAGING_PTE_SWPTYP_LOBIT)
+#define PAGING_PTE_SWPOFF_MASK GENMASK(PAGING_PTE_SWPOFF_HIBIT, PAGING_PTE_SWPOFF_LOBIT)
 
 /* OFFSET */
 #define PAGING_ADDR_OFFST_LOBIT 0
@@ -60,57 +64,56 @@
 /* SWAPFPN */
 #define PAGING_SWP_LOBIT NBITS(PAGING_PAGESZ)
 #define PAGING_SWP_HIBIT (NBITS(PAGING_MEMSWPSZ) - 1)
-#define PAGING_SWP(pte) ((pte&PAGING_SWP_MASK) >> PAGING_SWPFPN_OFFSET)
+#define PAGING_SWP(pte) ((pte & PAGING_SWP_MASK) >> PAGING_SWPFPN_OFFSET)
 
 /* Value operators */
-#define SETBIT(v,mask) (v=v|mask)
-#define CLRBIT(v,mask) (v=v&~mask)
+#define SETBIT(v, mask) (v = v | mask)
+#define CLRBIT(v, mask) (v = v & ~mask)
 
-#define SETVAL(v,value,mask,offst) (v=(v&~mask)|((value<<offst)&mask))
-#define GETVAL(v,mask,offst) ((v&mask)>>offst)
+#define SETVAL(v, value, mask, offst) (v = (v & ~mask) | ((value << offst) & mask)) // thay gia tri cua v theo gia tri cua value o dung vi tri cac bit mask =1, offset dung de lay cac bit cua value
+#define GETVAL(v, mask, offst) ((v & mask) >> offst)                                // lay cac bit cua v theo cac bit =1 cua mask, sau do bo offset bit cuoi
 
 /* Masks */
-#define PAGING_OFFST_MASK  GENMASK(PAGING_ADDR_OFFST_HIBIT,PAGING_ADDR_OFFST_LOBIT)
-#define PAGING_PGN_MASK  GENMASK(PAGING_ADDR_PGN_HIBIT,PAGING_ADDR_PGN_LOBIT)
-#define PAGING_FPN_MASK  GENMASK(PAGING_ADDR_FPN_HIBIT,PAGING_ADDR_FPN_LOBIT)
-#define PAGING_SWP_MASK  GENMASK(PAGING_SWP_HIBIT,PAGING_SWP_LOBIT)
+#define PAGING_OFFST_MASK GENMASK(PAGING_ADDR_OFFST_HIBIT, PAGING_ADDR_OFFST_LOBIT)
+#define PAGING_PGN_MASK GENMASK(PAGING_ADDR_PGN_HIBIT, PAGING_ADDR_PGN_LOBIT)
+#define PAGING_FPN_MASK GENMASK(PAGING_ADDR_FPN_HIBIT, PAGING_ADDR_FPN_LOBIT)
+#define PAGING_SWP_MASK GENMASK(PAGING_SWP_HIBIT, PAGING_SWP_LOBIT)
 
 /* Extract OFFSET */
-//#define PAGING_OFFST(x)  ((x&PAGING_OFFST_MASK) >> PAGING_ADDR_OFFST_LOBIT)
-#define PAGING_OFFST(x)  GETVAL(x,PAGING_OFFST_MASK,PAGING_ADDR_OFFST_LOBIT)
+// #define PAGING_OFFST(x)  ((x&PAGING_OFFST_MASK) >> PAGING_ADDR_OFFST_LOBIT)
+#define PAGING_OFFST(x) GETVAL(x, PAGING_OFFST_MASK, PAGING_ADDR_OFFST_LOBIT)
 /* Extract Page Number*/
-#define PAGING_PGN(x)  GETVAL(x,PAGING_PGN_MASK,PAGING_ADDR_PGN_LOBIT)
+#define PAGING_PGN(x) GETVAL(x, PAGING_PGN_MASK, PAGING_ADDR_PGN_LOBIT)
 /* Extract FramePHY Number*/
-#define PAGING_FPN(x)  (x&4095)
+#define PAGING_FPN(x) GETVAL(x, PAGING_FPN_MASK, PAGING_ADDR_FPN_LOBIT)
 /* Extract SWAPFPN */
-#define PAGING_PGN(x)  GETVAL(x,PAGING_PGN_MASK,PAGING_ADDR_PGN_LOBIT)
+#define PAGING_PGN(x) GETVAL(x, PAGING_PGN_MASK, PAGING_ADDR_PGN_LOBIT)
 /* Extract SWAPTYPE */
-#define PAGING_SWPTYPE(x)  GETVAL(x,PAGING_FPN_MASK,PAGING_ADDR_FPN_LOBIT)
+#define PAGING_FPN(x) GETVAL(x, PAGING_FPN_MASK, PAGING_ADDR_FPN_LOBIT)
 
 /* Memory range operator */
-#define INCLUDE(x1,x2,y1,y2) (((y1-x1)*(x2-y2)>=0)?1:0)
-#define OVERLAP(x1,x2,y1,y2) (((y2-x1)*(x2-y1)>=0)?1:0)
+#define INCLUDE(x1, x2, y1, y2) (((y1 - x1) * (x2 - y2) >= 0) ? 1 : 0)
+#define OVERLAP(x1, x2, y1, y2) (((y2 - x1) * (x2 - y1) >= 0) ? 1 : 0)
 
 /* VM region prototypes */
-struct vm_rg_struct * init_vm_rg(int rg_start, int rg_endi);
-int enlist_vm_rg_node(struct vm_rg_struct **rglist, struct vm_rg_struct* rgnode);
+struct vm_rg_struct *init_vm_rg(int rg_start, int rg_endi);
+int enlist_vm_rg_node(struct vm_rg_struct **rglist, struct vm_rg_struct *rgnode);
 int enlist_pgn_node(struct pgn_t **pgnlist, int pgn);
-int enlist_tail_pgn_node(struct pgn_t **plist, int pgn);
-int vmap_page_range(struct pcb_t *caller, int addr, int pgnum, 
+int vmap_page_range(struct pcb_t *caller, int addr, int pgnum,
                     struct framephy_struct *frames, struct vm_rg_struct *ret_rg);
 int vm_map_ram(struct pcb_t *caller, int astart, int send, int mapstart, int incpgnum, struct vm_rg_struct *ret_rg);
 int alloc_pages_range(struct pcb_t *caller, int incpgnum, struct framephy_struct **frm_lst);
 int __swap_cp_page(struct memphy_struct *mpsrc, int srcfpn,
-                struct memphy_struct *mpdst, int dstfpn) ;
+                   struct memphy_struct *mpdst, int dstfpn);
 int pte_set_fpn(uint32_t *pte, int fpn);
 int pte_set_swap(uint32_t *pte, int swptyp, int swpoff);
 int init_pte(uint32_t *pte,
-             int pre,    // present
-             int fpn,    // FPN
-             int drt,    // dirty
-             int swp,    // swap
-             int swptyp, // swap type
-             int swpoff); //swap offset
+             int pre,     // present
+             int fpn,     // FPN
+             int drt,     // dirty
+             int swp,     // swap
+             int swptyp,  // swap type
+             int swpoff); // swap offset
 int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr);
 int __free(struct pcb_t *caller, int vmaid, int rgid);
 int __read(struct pcb_t *caller, int vmaid, int rgid, int offset, BYTE *data);
@@ -121,39 +124,53 @@ int init_mm(struct mm_struct *mm, struct pcb_t *caller);
 int pgalloc(struct pcb_t *proc, uint32_t size, uint32_t reg_index);
 int pgfree_data(struct pcb_t *proc, uint32_t reg_index);
 int pgread(
-		struct pcb_t * proc, // Process executing the instruction
-		uint32_t source, // Index of source register
-		uint32_t offset, // Source address = [source] + [offset]
-		uint32_t destination);
+    struct pcb_t *proc, // Process executing the instruction
+    uint32_t source,    // Index of source register
+    uint32_t offset,    // Source address = [source] + [offset]
+    uint32_t destination);
 int pgwrite(
-		struct pcb_t * proc, // Process executing the instruction
-		BYTE data, // Data to be wrttien into memory
-		uint32_t destination, // Index of destination register
-		uint32_t offset);
+    struct pcb_t *proc,   // Process executing the instruction
+    BYTE data,            // Data to be wrttien into memory
+    uint32_t destination, // Index of destination register
+    uint32_t offset);
 /* Local VM prototypes */
-struct vm_rg_struct * get_symrg_byid(struct mm_struct* mm, int rgid);
+struct vm_rg_struct *get_symrg_byid(struct mm_struct *mm, int rgid);
 int validate_overlap_vm_area(struct pcb_t *caller, int vmaid, int vmastart, int vmaend);
 int get_free_vmrg_area(struct pcb_t *caller, int vmaid, int size, struct vm_rg_struct *newrg);
 int inc_vma_limit(struct pcb_t *caller, int vmaid, int inc_sz);
-int find_victim_page(struct mm_struct* mm, int *pgn);
+int find_victim_page(struct mm_struct *mm, int *pgn);
 struct vm_area_struct *get_vma_by_num(struct mm_struct *mm, int vmaid);
-
+int pg_setval(struct mm_struct *mm, int addr, BYTE value, struct pcb_t *caller);
 /* MEM/PHY protypes */
 int MEMPHY_get_freefp(struct memphy_struct *mp, int *fpn);
 int MEMPHY_put_freefp(struct memphy_struct *mp, int fpn);
-int MEMPHY_put_usedfp(struct memphy_struct *mp, int fpn);
-int MEMPHY_read(struct memphy_struct * mp, int addr, BYTE *value);
-int MEMPHY_write(struct memphy_struct * mp, int addr, BYTE data);
-int MEMPHY_dump(struct memphy_struct * mp);
-int MEMPHY_clean_frame(struct memphy_struct *mp, int fpn);
+int MEMPHY_read(struct memphy_struct *mp, int addr, BYTE *value);
+int MEMPHY_write(struct memphy_struct *mp, int addr, BYTE data);
+int MEMPHY_dump(struct memphy_struct *mp);
 int init_memphy(struct memphy_struct *mp, int max_size, int randomflg);
+int RAM_dump(struct memphy_struct *mram);
 /* DEBUG */
 int print_list_fp(struct framephy_struct *fp);
 int print_list_rg(struct vm_rg_struct *rg);
 int print_list_vma(struct vm_area_struct *rg);
 
-
 int print_list_pgn(struct pgn_t *ip);
 int print_pgtbl(struct pcb_t *ip, uint32_t start, uint32_t end);
-void initialize_mm();
+
+/*------------Bat dau bai lam--------------*/
+// static pthread_mutex_t FIFO_lock;
+// static pthread_mutex_t MEM_in_use;
+// uint32_t *FIFO_find_vt_page_for_swap();
+// void FIFO_add_page(uint32_t *pte_add);
+// void FIFO_printf_list();
+// static struct FIFO_struct *FIFO_head;
+// static struct FIFO_struct *FIFO_tail;
+static struct LRU_struct *lru_head;
+static struct LRU_struct *lru_tail;
+void LRU_add_page(uint32_t *pte_add);
+uint32_t *LRU_find_victim_page();
+void LRU_print_page();
+#define PAGING_PTE_FPN(x) GETVAL(x, PAGING_PTE_FPN_MASK, PAGING_PTE_FPN_LOBIT)
+int MEMPHY_put_usedfp(struct memphy_struct *mp, int fpn);
+/*------------Ket thuc bai lam--------------*/
 #endif

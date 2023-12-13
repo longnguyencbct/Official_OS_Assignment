@@ -1,6 +1,6 @@
 #ifndef TIMER_H
 #define TIMER_H
-
+#define DEMO
 #include <pthread.h>
 #include <stdint.h>
 
