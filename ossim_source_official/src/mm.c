@@ -163,6 +163,7 @@ int alloc_pages_range(struct pcb_t *caller, int req_pgnum, struct framephy_struc
    }
    __swap_cp_page(caller->mram, victim_fpn, caller->active_mswp, swp_fpn);
    MEMPHY_clean_frame(caller->mram, victim_fpn);
+   // thiếu
    pte_set_swap(&caller->mm->pgd[vicpgn], SWPTYP, swp_fpn);
 
 			#if IODUMP

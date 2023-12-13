@@ -97,13 +97,12 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
   struct vm_area_struct *cur_vma = get_vma_by_num(caller->mm, vmaid);
 
   int old_sbrk;
-  int old_end = cur_vma->vm_end; //#####################################
+  int old_end = cur_vma->vm_end;
 
   /* TODO INCREASE THE LIMIT
    * inc_vma_limit(caller, vmaid, inc_sz)
    */
   int inc_vma_limit_ret = inc_vma_limit(caller, vmaid, size);
-  //################START#####################
   if(inc_vma_limit_ret < 0) {
     return -1;
   }
@@ -112,13 +111,13 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
   } else {
     old_sbrk = old_end;
   }
-//##################END###################
+
   /*Successful increase limit */
   caller->mm->symrgtbl[rgid].rg_start = old_sbrk;
   caller->mm->symrgtbl[rgid].rg_end = old_sbrk + size;
 
   *alloc_addr = old_sbrk;
-  cur_vma->sbrk = old_sbrk + size;//#####################################
+  cur_vma->sbrk = old_sbrk + size;
   // print_list_vma(cur_vma);
   return 0;
 }
@@ -138,10 +137,9 @@ int __free(struct pcb_t *caller, int vmaid, int rgid)
     return -1;
 
   /* TODO: Manage the collect freed region to freerg_list */
-  //###############START######################
   removedItem->rg_start = caller->mm->symrgtbl[rgid].rg_start;
   removedItem->rg_end = caller->mm->symrgtbl[rgid].rg_end;
-//##################END###################
+
   /*enlist the obsoleted memory region */
   enlist_vm_freerg_list(caller->mm, removedItem);
 
@@ -157,10 +155,9 @@ int pgalloc(struct pcb_t *proc, uint32_t size, uint32_t reg_index)
 {
   int addr;
   /* By default using vmaid = 0 */
-  int pid = proc->pid;//#####################################
+  int pid = proc->pid;
   int alloc = __alloc(proc, 0, reg_index, size, &addr);
   // Print out the allocated memory region and used frames
-  //##################START###################
   struct vm_area_struct * vma = get_vma_by_num(proc->mm, 0);
   printf ("------ ALLOC size = %d at process %d ------\nVMA: start %ld - end %ld - sbrk %ld\n", size, pid, vma->vm_start, vma->vm_end, vma->sbrk);
 
@@ -173,7 +170,7 @@ int pgalloc(struct pcb_t *proc, uint32_t size, uint32_t reg_index)
   printf("\n");
   print_pgtbl(proc, 0, -1);
   printf ("----------------------------------\n");
-  //##################END###################
+  
   return alloc;
 }
 
@@ -187,7 +184,6 @@ int pgfree_data(struct pcb_t *proc, uint32_t reg_index)
 {
   int free = __free(proc, 0, reg_index);
   //Print free list
-  //#################START####################
   struct vm_area_struct * vma = get_vma_by_num(proc->mm, 0);
   printf ("------ FREE at process %d ------\n", proc->pid);
   struct vm_rg_struct *freelist = vma->vm_freerg_list;
@@ -197,7 +193,7 @@ int pgfree_data(struct pcb_t *proc, uint32_t reg_index)
     freelist = freelist->rg_next;
   }
   printf ("\n----------------------------------\n");
-  //##################END###################
+
   return free;
 }
 
@@ -222,7 +218,6 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
 
     /* TODO: Play with your paging theory here */
     /* Find victim page */
-    //#################START####################
     if(find_victim_page(caller->mm, &vicpgn) < 0) {
       return -1;
     }
@@ -250,7 +245,6 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
     pte_set_fpn(&mm->pgd[pgn], victim_fpn);
 
     enlist_tail_pgn_node(&caller->mm->fifo_pgn,pgn);
-    //##################END###################
   }
 
   *fpn = PAGING_FPN(pte);
@@ -336,7 +330,7 @@ int pgread(
 {
   BYTE data;
   int val = __read(proc, 0, source, offset, &data);
-  //################START#####################
+
   struct vm_rg_struct dest = proc->mm->symrgtbl[destination];
   if (dest.rg_end - dest.rg_start < 1) {
     return -1;
@@ -345,7 +339,6 @@ int pgread(
   pg_setval(proc->mm, dest.rg_start, data, proc);
 
   printf("\n---------- READ ----------\n");
-  //##################END###################
 #ifdef IODUMP
   printf("read region=%d offset=%d value=%d\n", source, offset, data);
 #ifdef PAGETBL_DUMP
@@ -373,11 +366,10 @@ int __write(struct pcb_t *caller, int vmaid, int rgid, int offset, BYTE value)
   
   if(currg == NULL || cur_vma == NULL) /* Invalid memory identify */
 	  return -1;
-  //################START#####################
+
   if (currg->rg_start + offset > currg->rg_end) {
     return -1;
   }
-  //##################END###################
   pg_setval(caller->mm, currg->rg_start + offset, value, caller);
 
   return 0;
@@ -462,12 +454,10 @@ struct vm_rg_struct* get_vm_area_node_at_brk(struct pcb_t *caller, int vmaid, in
 int validate_overlap_vm_area(struct pcb_t *caller, int vmaid, int vmastart, int vmaend)
 {
   /* TODO validate the planned memory area is not overlapped */
-  //################START#####################
   struct vm_area_struct *vma = get_vma_by_num(caller->mm, vmaid);
   if (vmaend > vma->vm_end) {
     return 1;
   }
-  //###################END##################
   return 0;
 }
 
@@ -513,13 +503,12 @@ int find_victim_page(struct mm_struct *mm, int *retpgn)
   struct pgn_t *pg = mm->fifo_pgn;
 
   /* TODO: Implement the theorical mechanism to find the victim page */
-  //################START#####################
   if(pg == NULL) {
     return -1;
   }
   mm->fifo_pgn = mm->fifo_pgn->pg_next;
   *retpgn = pg->pgn;
-  //##################END###################
+
   free(pg);
 
   return 0;
@@ -554,7 +543,6 @@ int get_free_vmrg_area(struct pcb_t *caller, int vmaid, int size, struct vm_rg_s
       newrg->rg_end = rgit->rg_start + size;
 
       /* Update left space in chosen region */
-        //################START#####################
       if (rgit->rg_start + size < rgit->rg_end)
       {
         rgit->rg_start = rgit->rg_start + size;
@@ -562,7 +550,7 @@ int get_free_vmrg_area(struct pcb_t *caller, int vmaid, int size, struct vm_rg_s
         newrgit->rg_start = rgit->rg_start;
         newrgit->rg_end = rgit->rg_end;
         enlist_vm_freerg_list(caller->mm, newrgit);
-        //#####################################
+
         struct vm_rg_struct *nextrg = rgit->rg_next;
 
         /*Cloning */
@@ -580,13 +568,11 @@ int get_free_vmrg_area(struct pcb_t *caller, int vmaid, int size, struct vm_rg_s
           rgit->rg_start = rgit->rg_end;	//dummy, size 0 region
           rgit->rg_next = NULL;
         }
-        //#####################################
         break;
       }
       else
       { /*Use up all space, remove current node */
         /*Clone next rg node */
-        //#####################################
         struct vm_rg_struct *nextrg = rgit->rg_next;
 
         /*Cloning */
@@ -603,10 +589,7 @@ int get_free_vmrg_area(struct pcb_t *caller, int vmaid, int size, struct vm_rg_s
           rgit->rg_start = rgit->rg_end;	//dummy, size 0 region
           rgit->rg_next = NULL;
         }
-        //#####################################
       }
-      
-        //################END#####################
     }
     else
     {
