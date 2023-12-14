@@ -666,6 +666,13 @@ int __read(struct pcb_t *caller, int vmaid, int rgid, int offset, BYTE *data)
   }
   else
   {
+
+    struct vm_rg_struct rgnode=*get_symrg_byid(caller->mm, rgid);
+    int *alloc_addr = rgnode.rg_start;
+    int current_pgn = PAGING_PGN(rgnode.rg_start);
+    uint32_t *current_pte = caller->mm->pgd[current_pgn];
+
+    Update_LRU_lst(&current_pte);
     pg_getval(caller->mm, currg->rg_start + offset, data, caller);
   }
 
@@ -741,6 +748,13 @@ int __write(struct pcb_t *caller, int vmaid, int rgid, int offset, BYTE value)
   }
   else
   {
+
+    struct vm_rg_struct rgnode=*get_symrg_byid(caller->mm, rgid);
+    int *alloc_addr = rgnode.rg_start;
+    int current_pgn = PAGING_PGN(rgnode.rg_start);
+    uint32_t *current_pte = caller->mm->pgd[current_pgn];
+
+    Update_LRU_lst(&current_pte);
     pg_setval(caller->mm, currg->rg_start + offset, value, caller);
   }
   /*------------------Ket thuc phan lam---------------*/
