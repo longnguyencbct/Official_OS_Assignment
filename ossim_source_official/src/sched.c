@@ -51,37 +51,20 @@ void init_scheduler(void)
  */
 struct pcb_t *get_mlq_proc(void)
 {
-	struct pcb_t *proc = NULL;
-
-	/*TODO: get a process from PRIORITY [ready_queue].
-	 * Remember to use lock to protect the queue.
-	 * */
-	// pthread_mutex_lock(&queue_lock);
-	if (cnt_slot >= MAX_PRIO - cnt_prio || empty(&mlq_ready_queue[cnt_prio]))
-	{
-		// find next non-empty queue
-		if (queue_empty() == 1)
-		{
-			pthread_mutex_unlock(&queue_lock);
-			return proc;
-		}
-		do
-		{
-			cnt_prio = (cnt_prio + 1) % MAX_PRIO;
-			if (!empty(&mlq_ready_queue[cnt_prio]))
-			{
-				proc = dequeue(&mlq_ready_queue[cnt_prio]);
-				cnt_slot = 1;
-			}
-		} while (proc == NULL);
-	}
-	else
-	{
-		proc = dequeue(&mlq_ready_queue[cnt_prio]);
-		cnt_slot++;
-	}
-	// pthread_mutex_unlock(&queue_lock);
-	return proc;
+    struct pcb_t * proc = NULL;
+    /*TODO: get a process from PRIORITY [ready_queue].
+     * Remember to use lock to protect the queue.
+     * */
+    pthread_mutex_lock(&queue_lock);
+    for (int i = 0; i<MAX_PRIO;i++){
+        if (proc != NULL) {
+            pthread_mutex_unlock(&queue_lock);
+            return proc;
+        }
+        if (!empty(&mlq_ready_queue[i])) proc = dequeue(&mlq_ready_queue[i]);
+    }
+    pthread_mutex_unlock(&queue_lock);
+    return proc;	
 }
 
 void put_mlq_proc(struct pcb_t *proc)

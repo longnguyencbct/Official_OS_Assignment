@@ -134,8 +134,9 @@ int vmap_page_range(struct pcb_t *caller,           // process call
     printf("[Page mapping]\tPID #%d:\tFrame:%d\tPTE:%08x\tPGN:%d\n", caller->pid, fpit->fpn, caller->mm->pgd[pgn + pgit], pgn + pgit);
 #endif 
 
-    //add frame to global LRU
-    LRU_add_page(&(caller->mm->pgd[pgn + pgit])); 
+
+  //add frame to global LRU
+  Add_LRU_page(&(caller->mm->pgd[pgn + pgit]));
     fpit = fpit->fp_next;
     pgit++;
   }

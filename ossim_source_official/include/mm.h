@@ -167,7 +167,7 @@ int print_pgtbl(struct pcb_t *ip, uint32_t start, uint32_t end);
 // static struct FIFO_struct *FIFO_tail;
 static struct LRU_struct *lru_head;
 static struct LRU_struct *lru_tail;
-void LRU_add_page(uint32_t *pte_add);
+void Add_LRU_page(uint32_t *pte_add);
 uint32_t *LRU_find_victim_page();
 void LRU_print_page();
 #define PAGING_PTE_FPN(x) GETVAL(x, PAGING_PTE_FPN_MASK, PAGING_PTE_FPN_LOBIT)
