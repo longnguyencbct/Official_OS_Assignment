@@ -154,7 +154,7 @@ int vmap_page_range(struct pcb_t *caller,           // process call
 
     // them cac frame nay vao global fifo
     // FIFO_add_page(&(caller->mm->pgd[pgn + pgit]));
-    LRU_add_page(&(caller->mm->pgd[pgn + pgit]));
+    Add_LRU_page(&(caller->mm->pgd[pgn + pgit]));
     fpit = fpit->fp_next;
     pgit++;
   }
