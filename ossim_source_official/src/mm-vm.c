@@ -261,7 +261,7 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
 #endif
   // LRU_print_page();
 #ifdef RAM_STATUS_DUMP
-  printf("=======================================\n");
+  printf("+++++++++++++++++++++++++++++++++++++++++++++++++++\n");
   printf("Process %d ALLOC CALL | SIZE = %d\n", caller->pid, size);
 
 #endif
@@ -309,7 +309,7 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
     // Add_LRU_page(&current_pte);
     Update_LRU_lst(&current_pte);
 #ifdef RAM_STATUS_DUMP
-    printf("FOUND A FREE region to alloc. REMEMBER to check LRU for update.\n");
+    printf("FOUND A FREE region to alloc.\n");
     printf("=======================================\n");
     for (int it = 0; it < PAGING_MAX_SYMTBL_SZ; it++)
     {
@@ -408,8 +408,9 @@ int __free(struct pcb_t *caller, int vmaid, int rgid)
 
   if (rgid < 0 || rgid > PAGING_MAX_SYMTBL_SZ)
   {
-    return -1;
+  LRU_print_page();
     printf("Process %d free error: Invalid region\n", caller->pid);
+    return -1;
   }
 
   /* TODO: Manage the collect freed region to freerg_list */
@@ -417,6 +418,7 @@ int __free(struct pcb_t *caller, int vmaid, int rgid)
   rgnode = get_symrg_byid(caller->mm, rgid);
   if (rgnode->rg_start == rgnode->rg_end)
   {
+  LRU_print_page();
     printf("Process %d FREE Error: Region wasn't alloc or was freed before\n", caller->pid);
     return -1;
   }
@@ -436,7 +438,7 @@ int __free(struct pcb_t *caller, int vmaid, int rgid)
   /*enlist the obsoleted memory region */
   enlist_vm_freerg_list(caller->mm, *rgnode_temp);
 #ifdef RAM_STATUS_DUMP
-  printf("=======================================\n");
+  printf("+++++++++++++++++++++++++++++++++++++++++++++++++++\n");
   printf("Process %d FREE CALL | Region id %d after free: [%lu,%lu]\n", caller->pid, rgid, rgnode->rg_start, rgnode->rg_end);
   for (int it = 0; it < PAGING_MAX_SYMTBL_SZ; it++)
   {
@@ -456,6 +458,7 @@ int __free(struct pcb_t *caller, int vmaid, int rgid)
   }
   printf("=======================================\n");
 #endif
+LRU_print_page();
   return 0;
 }
 
@@ -686,8 +689,10 @@ int pgread(
 
   destination = (uint32_t)data;
 #ifdef IODUMP
-  if (val == 0)
+  if (val == 0){
+  printf("+++++++++++++++++++++++++++++++++++++++++++++++++++\n");
     printf("Process %d read region=%d offset=%d value=%d\n", proc->pid, source, offset, data);
+    }
   else
     printf("Process %d error when read region=%d offset=%d \n", proc->pid, source, offset);
 #ifdef PAGETBL_DUMP
@@ -754,6 +759,7 @@ int pgwrite(
   printf("pgwrite\n");
 #endif
 #ifdef IODUMP
+  printf("+++++++++++++++++++++++++++++++++++++++++++++++++++\n");
   printf("Process %d write region=%d offset=%d value=%d\n", proc->pid, destination, offset, data);
 #endif
   int x = __write(proc, 0, destination, offset, data);
